@@ -7,17 +7,11 @@ description: >
   ideation/brainstorming. Routes Claude consults through a free Task subagent and non-Anthropic consults
   through the OpenRouter agent loop. Trigger with 'brains trust', 'second opinion', 'ask another model',
   'peer review', 'consult', 'challenge this', 'devil's advocate', 'brainstorm with the panel'.
-triggers:
-  - brains trust
-  - brainstrust
-  - second opinion
-  - peer review
-  - consult the panel
-  - challenge this
-  - devil's advocate
-  - what would another model think
-  - brainstorm with the panel
 user-invocable: true
+# Side-effecting (spends real OpenRouter $): deliberate /brainstrust only, never auto-fired.
+# The shipwright loop still reaches it (names it + runs the harness via Bash) — this just stops
+# Claude auto-deciding to run a paid panel because code "looks ready".
+disable-model-invocation: true
 argument-hint: "[methodology] [question]"
 ---
 
