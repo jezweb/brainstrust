@@ -23,6 +23,8 @@ argument-hint: "[methodology] [question]"
 
 # Brains Trust
 
+> Part of the **shipwright** method — see the `shipwright` skill for the work-loop this move fits into and when to reach for it.
+
 Get a grounded second opinion from leading models. The defining move versus the old version: the
 consulted model is an **agentic pair reviewer** — it has read-only repo tools and **explores the code
 itself**, rather than reasoning over a bundle you hand-fed it. You point it at a few starting files; it
