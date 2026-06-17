@@ -52,9 +52,14 @@ function parseArgs(argv: string[]): Args {
     questionFile: a["question-file"],
     repo: resolve(a.repo ?? "."),
     paths: a.paths,
-    maxCost: a["max-cost"] ? parseFloat(a["max-cost"]) : 0.5,
-    maxSteps: a["max-steps"] ? parseInt(a["max-steps"], 10) : 25,
+    maxCost: validPos(a["max-cost"] ? parseFloat(a["max-cost"]) : NaN, 0.5),
+    maxSteps: validPos(a["max-steps"] ? parseInt(a["max-steps"], 10) : NaN, 25),
   };
+}
+
+/** Guard CLI-supplied numbers: fall back to the default on NaN/≤0. */
+function validPos(n: number, fallback: number): number {
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 function buildInput(args: Args, question: string): string {
@@ -65,8 +70,10 @@ function buildInput(args: Args, question: string): string {
       .map((h) => h.trim())
       .filter(Boolean)
       .map((h) => {
-        const [p, why] = h.split(":");
-        return why ? `- ${p?.trim()} — ${why.trim()}` : `- ${p?.trim()}`;
+        const idx = h.indexOf(":"); // split on FIRST colon — a "why" can itself contain colons
+        const p = (idx === -1 ? h : h.slice(0, idx)).trim();
+        const why = idx === -1 ? "" : h.slice(idx + 1).trim();
+        return why ? `- ${p} — ${why}` : `- ${p}`;
       })
       .join("\n");
     input += `\nStarting points (hints, NOT limits — explore wherever the code leads):\n${hints}\n`;
@@ -158,7 +165,7 @@ async function main() {
   let totalCost = 0;
   for (const r of results) {
     writeFileSync(join(dir, `${r.model.replace(/\//g, "_")}.md`), r.text);
-    if (r.cost) totalCost += r.cost;
+    if (r.cost != null) totalCost += r.cost;
   }
 
   console.log(`\n# brainstrust — ${m.title} (${pattern})\n`);
