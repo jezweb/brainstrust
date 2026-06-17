@@ -9,7 +9,7 @@ description: >
   'peer review', 'consult', 'challenge this', 'devil's advocate', 'brainstorm with the panel'.
 user-invocable: true
 # Side-effecting (spends real OpenRouter $): deliberate /brainstrust only, never auto-fired.
-# The shipwright loop still reaches it (names it + runs the harness via Bash) — this just stops
+# The shipwright loop still invokes it (names it + runs the harness via Bash) — this just stops
 # Claude auto-deciding to run a paid panel because code "looks ready".
 disable-model-invocation: true
 argument-hint: "[methodology] [question]"
@@ -17,7 +17,7 @@ argument-hint: "[methodology] [question]"
 
 # Brains Trust
 
-> Part of the **shipwright** method — see the `shipwright` skill for the work-loop this move fits into and when to reach for it.
+> Part of the **shipwright** method — see the `shipwright` skill for the work-loop this move fits into and when to invoke it.
 
 Get a grounded second opinion from leading models. The defining move versus the old version: the
 consulted model is an **agentic pair reviewer** — it has read-only repo tools and **explores the code
@@ -107,7 +107,7 @@ different stances (skeptic / pragmatist / security-hawk) in parallel.
 - **Grounded only.** The harness's system prompt forbids claims about code the model hasn't read and
   demands file:line citations. Hold consulted output to that — discount ungrounded assertions.
 - **Span providers for real diversity.** Redundant providers give correlated errors.
-- **Mind the spend.** Non-Claude consults cost money; Claude subagents don't. Reach for the panel on
+- **Mind the spend.** Non-Claude consults cost money; Claude subagents don't. Run a panel for
   decisions that matter, not every edit.
 
 ## When to use / not
