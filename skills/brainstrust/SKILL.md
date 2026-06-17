@@ -67,16 +67,31 @@ Each bundles a pattern + model count + a system-prompt lens. Pick by the *kind o
 (`ideate` is brainstorming: same tools, different question — the model reads enough to ground ideas, then
 generates many distinct directions instead of narrowing.)
 
+## Setup (once per machine — the harness has npm deps that aren't committed)
+
+`src/consult.ts` imports `@openrouter/agent` etc. `node_modules` is intentionally NOT committed, so on
+a fresh plugin install you must install the deps first. It's idempotent — skips if already present:
+
+```bash
+cd "$CLAUDE_PLUGIN_ROOT" && { [ -d node_modules ] || npm install; }
+```
+
+Run it before the first consult on a machine (and again only if it ever reports a missing module — a
+plugin update can replace the dir). Always invoke the harness from `$CLAUDE_PLUGIN_ROOT` so `node_modules`
++ `tsx` resolve regardless of your current directory.
+
 ## Running a non-Anthropic consult
 
 ```bash
 export OPENROUTER_API_KEY=...        # once; Claude consults need no key
-npx tsx src/consult.ts \
+cd "$CLAUDE_PLUGIN_ROOT" && npx tsx src/consult.ts \
   --methodology review \
   --repo /path/to/repo \
   --question "Is the auth middleware order correct, and can a gated role reach /admin?" \
   --paths "src/server/index.ts:middleware registration; src/server/middleware/auth.ts:the gate"
 ```
+(`--repo` is the target repo to consult on; the harness reads files relative to it, so running from
+`$CLAUDE_PLUGIN_ROOT` doesn't affect which code the model sees.)
 
 - `--methodology` (default `explore`) picks the recipe. `--pattern` / `--count` / `--models` override it.
 - `--models` is auto-chosen as **flagship non-Anthropic, one per provider** from the live list
