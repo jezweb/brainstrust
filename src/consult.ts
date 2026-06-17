@@ -99,17 +99,27 @@ async function consultOne(
     stopWhen: [stepCountIs(maxSteps), maxCost(maxCostUsd)],
     allowFinalResponse: true,
   });
+  // Count tool calls AS THEY HAPPEN. getToolCalls() returns only the final turn's
+  // calls (the answer turn has none → 0, misleadingly), so consume the stream
+  // concurrently with getText(). null = couldn't measure (don't fake a 0).
+  const toolCallsP = (async (): Promise<number | null> => {
+    let n = 0;
+    try {
+      for await (const _ of result.getToolCallsStream()) n++;
+    } catch {
+      return null;
+    }
+    return n;
+  })();
   const text = await result.getText();
+  const toolCalls = await toolCallsP;
   let cost: number | null | undefined;
-  let steps: number | undefined;
   try {
-    const resp = await result.getResponse();
-    cost = resp.usage?.cost;
-    steps = (await result.getToolCalls()).length;
+    cost = (await result.getResponse()).usage?.cost;
   } catch {
-    /* usage best-effort */
+    /* cost is best-effort — some providers don't report it */
   }
-  return { model, text, cost, toolCalls: steps };
+  return { model, text, cost, toolCalls };
 }
 
 async function main() {
@@ -150,8 +160,8 @@ async function main() {
       consultOne(client(), x.id, instructions, input, args.repo, args.maxCost, args.maxSteps).catch((err: unknown) => ({
         model: x.id,
         text: `(failed: ${(err as Error).message})`,
-        cost: undefined,
-        toolCalls: undefined,
+        cost: undefined as number | null | undefined,
+        toolCalls: null as number | null,
       })),
     ),
   );
@@ -170,11 +180,14 @@ async function main() {
 
   console.log(`\n# brainstrust — ${m.title} (${pattern})\n`);
   for (const r of results) {
-    console.log(`\n## ${r.model}${r.cost != null ? `  ·  $${r.cost.toFixed(4)}` : ""}${r.toolCalls != null ? `  ·  ${r.toolCalls} tool calls` : ""}\n`);
+    const costStr = r.cost && r.cost > 0 ? `$${r.cost.toFixed(4)}` : "cost n/a";
+    const reads = r.toolCalls == null ? "reads: unknown" : `${r.toolCalls} repo reads`;
+    console.log(`\n## ${r.model}  ·  ${costStr}  ·  ${reads}\n`);
     console.log(r.text);
   }
+  const totalStr = totalCost > 0 ? `$${totalCost.toFixed(4)}` : "n/a (providers didn't report usage)";
   console.log(
-    `\n---\nTotal: $${totalCost.toFixed(4)} across ${results.length} model(s). Artifacts: ${dir}\n` +
+    `\n---\nTotal: ${totalStr} across ${results.length} model(s). Artifacts: ${dir}\n` +
       `Synthesis is yours: the panel is INPUT, not verdict. Note where they agree/disagree, add your own read, and say if you disagree with all of them.`,
   );
 }
