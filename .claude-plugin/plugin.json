@@ -1,0 +1,12 @@
+{
+  "name": "brainstrust",
+  "description": "Get a second opinion grounded in your actual codebase — the consulted model reads the repo itself (read/grep/find) instead of being hand-fed files. Claude consults ride the subscription via subagents (free); non-Anthropic voices go through the OpenRouter agent loop. Built-in methodologies for review, architecture, debug, security, devil's advocate, strategy, explore, and ideation.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jeremy Dawes",
+    "email": "jeremy@jezweb.net"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/jezweb/brainstrust",
+  "repository": "https://github.com/jezweb/brainstrust"
+}

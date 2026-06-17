@@ -1,0 +1,14 @@
+{
+  "name": "brainstrust",
+  "owner": {
+    "name": "Jeremy Dawes",
+    "email": "jeremy@jezweb.net"
+  },
+  "plugins": [
+    {
+      "name": "brainstrust",
+      "source": "./",
+      "description": "An agentic pair-reviewer panel: consulted models read your repo themselves and return grounded, file:line-cited opinions. Claude voices are free via subagents; non-Anthropic voices add the diverse blind spots. Methodologies for review, architecture, debug, security, devil's advocate, strategy, explore, and ideation."
+    }
+  ]
+}

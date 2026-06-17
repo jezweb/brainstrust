@@ -1,0 +1,27 @@
+{
+  "name": "brainstrust",
+  "version": "0.1.0",
+  "description": "Consult flagship non-Anthropic models as an agentic pair reviewer — they read the repo themselves (read/grep/find) rather than being hand-fed files. Claude consults ride the Claude Code subscription via subagents.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jeremy Dawes",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jezweb/brainstrust.git"
+  },
+  "homepage": "https://github.com/jezweb/brainstrust#readme",
+  "scripts": {
+    "consult": "tsx src/consult.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openrouter/agent": "0.7.1",
+    "@openrouter/sdk": "0.13.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
