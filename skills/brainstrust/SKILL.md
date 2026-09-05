@@ -1,16 +1,17 @@
 ---
 name: brainstrust
 description: >
-  Consult other leading AI models for a second opinion that is grounded in your actual codebase — the
-  consulted model reads the repo itself (read/grep/find) instead of being hand-fed files. Use for code
-  review, architecture, debugging, security, devil's advocate, strategy, exploring blind spots, or
-  ideation/brainstorming. Routes Claude consults through a free Task subagent and non-Anthropic consults
-  through the OpenRouter agent loop. Trigger with 'brains trust', 'second opinion', 'ask another model',
-  'peer review', 'consult', 'challenge this', 'devil's advocate', 'brainstorm with the panel'.
+  Consult other leading AI models for a second opinion that is grounded in your actual codebase. Use for
+  code review, architecture, debugging, security, devil's advocate, strategy, exploring blind spots, or
+  ideation/brainstorming. Routes Claude consults through a free Task subagent; non-Anthropic consults go
+  through the bt gateway by default (free, Workers AI, no key) or the OpenRouter agent loop when opted in.
+  Trigger with 'brains trust', 'second opinion', 'ask another model', 'peer review', 'consult', 'challenge
+  this', 'devil's advocate', 'brainstorm with the panel'.
 user-invocable: true
-# Side-effecting (spends real OpenRouter $): deliberate /brainstrust only, never auto-fired.
-# The shipwright loop still invokes it (names it + runs the harness via Bash) — this just stops
-# Claude auto-deciding to run a paid panel because code "looks ready".
+# The OpenRouter path spends real $; the gateway path (default) does not. Deliberate
+# /brainstrust only, never auto-fired — the shipwright loop still invokes it (names it + runs
+# the harness via Bash) — this just stops Claude auto-deciding to run a panel because code
+# "looks ready".
 disable-model-invocation: true
 argument-hint: "[methodology] [question]"
 ---
@@ -19,23 +20,27 @@ argument-hint: "[methodology] [question]"
 
 > Part of the **shipwright** method — see the `shipwright` skill for the work-loop this move fits into and when to invoke it.
 
-Get a grounded second opinion from leading models. The defining move versus the old version: the
-consulted model is an **agentic pair reviewer** — it has read-only repo tools and **explores the code
-itself**, rather than reasoning over a bundle you hand-fed it. You point it at a few starting files; it
-follows the trail.
+Get a grounded second opinion from leading models. Non-Anthropic seats run through the **bt gateway** by
+default — free, no key, and grounded in a **pre-gathered bundle** (the working-tree diff + the files you
+point it at). Opt into the older **OpenRouter agent harness** when you want a seat that **explores the
+repo itself** via live read-only tools instead of a bundle (costs tokens, needs a key).
 
 ## The one routing rule (read this first)
 
 **Who you consult decides the transport — and the cost:**
 
-| Consulting… | Use | Cost |
-|---|---|---|
-| **A Claude model** (Opus/Sonnet/Haiku/Fable) | a **Task subagent** with an explore-and-critique prompt | **free** — rides the Claude Code subscription |
-| **A non-Anthropic model** (Gemini / GPT / Qwen / DeepSeek …) | the **OpenRouter agent harness** (`src/consult.ts`) | paid OpenRouter tokens |
+| Consulting… | Use | Grounding | Cost |
+|---|---|---|---|
+| **A Claude model** (Opus/Sonnet/Haiku/Fable) | a **Task subagent** with an explore-and-critique prompt | live tools | **free** — rides the Claude Code subscription |
+| **A non-Anthropic model**, default | the **bt gateway** (`src/consult.ts`, no flag needed) | pre-gathered bundle (diff + `--paths`) | **free** — Cloudflare Workers AI, fleet-shared |
+| **A non-Anthropic model**, opt-in | the **OpenRouter agent harness** (`src/consult.ts --transport openrouter`) | live tools (model explores itself) | paid OpenRouter tokens |
 
 A Claude subagent already has `Read`/`Grep`/`Glob` and an agent loop — it *is* an agentic pair reviewer
-out of the box, for free. So never pay the API to ask Claude. Pay only for the **diverse voices** — the
-whole value of a brains trust is *different blind spots*, and that means non-Claude models.
+out of the box, for free. So never pay the API to ask Claude. The bt gateway path is also free, so reach
+for it first for the **diverse voices** — the whole value of a brains trust is *different blind spots*,
+and that means non-Claude models. Reach for `--transport openrouter` only when the question genuinely
+needs a model to roam the repo on its own rather than work from a bundle you handed it (e.g. "trace every
+caller of this function across the repo").
 
 For an important call, a **mixed panel** is ideal: one free Claude subagent that reads the real files,
 plus one or two non-Anthropic voices via the harness.
@@ -70,27 +75,43 @@ and `tsx` resolve. If a consult ever errors with a missing module, that's the si
 
 ## Running a non-Anthropic consult
 
-Run from the plugin's directory:
+Run from the plugin's directory. No key needed — this goes through the bt gateway by default:
 
 ```bash
-export OPENROUTER_API_KEY=...        # Claude consults need no key
 npx tsx src/consult.ts \
   --methodology review \
   --repo /path/to/repo \
   --question "Is the auth middleware order correct, and can a gated role reach /admin?" \
   --paths "src/server/index.ts:middleware registration; src/server/middleware/auth.ts:the gate"
 ```
-`--repo` is the target repo to consult on (the harness reads files relative to it, so where you run
-from doesn't change which code the model sees).
+`--repo` is the target repo to consult on (paths are read relative to it, so where you run from doesn't
+change which code the model sees). On the gateway path, `consult.ts` gathers `git diff HEAD` for that repo
+plus every `--paths` file itself and hands it over as a bundle (`src/bundle.ts`) — there is no live
+exploration, so point `--paths` at what actually matters; output is tagged `grounding: bundle`.
 
 - `--methodology` (default `explore`) picks the recipe. `--pattern` / `--count` / `--models` override it.
-- `--models` is auto-chosen as **flagship non-Anthropic, one per provider** from the live list
-  (`models.flared.au`), with a stale fallback if it's unreachable — or pass explicit ids
-  (`--models openai/gpt-5.4,google/gemini-3.1-pro-preview`).
-- `--paths` are *hints* (path:why, `;`-separated), NOT limits — the model roams from there.
-- `--max-cost` (default $0.50/model) and `--max-steps` (25) are hard ceilings via the agent loop's
-  `stopWhen`. Each consult prints its own token cost.
-- Output: each model's view to stdout (+ `.brainstrust/<ts>-<methodology>/`), with a total cost line.
+- `--models` is auto-chosen as **flagship non-Anthropic, one per lab** — from the bt gateway's own
+  `GET /health.default_panel` on the gateway transport, or `models.flared.au` on the openrouter transport
+  — with a stale fallback (and a warning) if the live source is unreachable. Or pass explicit ids.
+- `--paths` are *hints* (path:why, `;`-separated). On the gateway path these are exactly what gets bundled
+  (not limits on a live crawl — there is no crawl); on `--transport openrouter` they're starting points and
+  the model roams from there.
+- Output: each model's view to stdout (+ `.brainstrust/<ts>-<methodology>/`).
+
+### Opting into the OpenRouter tool-loop instead
+
+When a question genuinely needs a model to explore the repo on its own — not just read what you handed
+it — add `--transport openrouter` (or just have `OPENROUTER_API_KEY` set):
+
+```bash
+export OPENROUTER_API_KEY=...
+npx tsx src/consult.ts --transport openrouter --methodology review --repo /path/to/repo \
+  --question "..." --paths "src/server/index.ts:starting point"
+```
+
+Costs paid OpenRouter tokens; `--max-cost` (default $0.50/model) and `--max-steps` (25) are hard ceilings
+via the agent loop's `stopWhen`, and each consult prints its own token cost. Output is tagged
+`grounding: tools`.
 
 ## Running a Claude consult (free)
 
@@ -104,11 +125,13 @@ different stances (skeptic / pragmatist / security-hawk) in parallel.
 - **The panel is INPUT, not verdict.** You synthesise: note where they agree/disagree, add your own read,
   and say plainly when you disagree with all of them. Don't defer to "the models said X" — they are
   often confidently wrong in chorus.
-- **Grounded only.** The harness's system prompt forbids claims about code the model hasn't read and
-  demands file:line citations. Hold consulted output to that — discount ungrounded assertions.
-- **Span providers for real diversity.** Redundant providers give correlated errors.
-- **Mind the spend.** Non-Claude consults cost money; Claude subagents don't. Run a panel for
-  decisions that matter, not every edit.
+- **Grounded only.** The system prompt forbids claims about code the model hasn't seen and demands
+  file:line citations. On the gateway path "seen" means "in the bundle" — the model is told to mark
+  anything else `NOT-SHOWN` rather than guess. Hold consulted output to that either way — discount
+  ungrounded assertions.
+- **Span providers/labs for real diversity.** Redundant labs give correlated errors.
+- **Mind the spend.** The gateway path and Claude subagents are free; `--transport openrouter` costs
+  money. Reach for the paid path only when the question needs live exploration, not every edit.
 
 ## When to use / not
 

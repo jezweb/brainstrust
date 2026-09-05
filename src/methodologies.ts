@@ -2,10 +2,16 @@
 // a consultation pattern, how many models, and the "lens" appended to the system
 // prompt. Adding a methodology is one entry here; the CLI exposes them by key.
 //
-// They all share one base instruction that makes the consult agentic and honest:
-// the model has read-only repo tools and MUST use them to ground every claim.
+// They all share one base instruction that makes the consult grounded and honest —
+// but the base text differs by GROUNDING MODE (see instructionsFor below), because
+// what "grounded" means differs by transport:
+//   - "tools":  the model has read-only repo tools and MUST use them (OpenRouter
+//               agent-loop transport — consult.ts --transport openrouter).
+//   - "bundle": the model was handed a pre-gathered bundle (diff + hinted files)
+//               and has no live tool access (bt gateway transport — the default).
 
 export type Pattern = "single" | "consensus" | "devils-advocate";
+export type Grounding = "tools" | "bundle";
 
 export interface Methodology {
   key: string;
@@ -15,13 +21,23 @@ export interface Methodology {
   lens: string; // appended to the base system prompt
 }
 
-const BASE = `You are a senior engineer giving a focused second opinion to another AI agent (Claude) that is working in this repository. You are advising Claude, not chatting with an end user.
+const BASE_TOOLS = `You are a senior engineer giving a focused second opinion to another AI agent (Claude) that is working in this repository. You are advising Claude, not chatting with an end user.
 
 You have READ-ONLY tools: read_file, list_dir, find, grep. You are NOT hand-fed the code — explore the repo yourself. Start from any paths you were pointed at, then follow your nose (grep for usages, read the callers, check the config).
 
 Hard rules:
 - Ground every claim in code you have actually read. Cite file:line. Do not speculate about code you have not opened.
 - If you cannot verify something, say so plainly and say what you'd need to see. Never fabricate APIs, behaviour, or specifics.
+- Be concrete and prioritised. End with a short ranked list of findings (most important first), each with the file:line and a one-line "why it matters".
+- You are one voice of several. Argue your view; don't hedge into mush.`;
+
+const BASE_BUNDLE = `You are a senior engineer giving a focused second opinion to another AI agent (Claude) that is working in this repository. You are advising Claude, not chatting with an end user.
+
+You do NOT have live tool access. Below you were handed a BUNDLE: the working-tree diff (if any) and the specific files judged relevant, gathered by the calling agent — not the whole repo, and not fetched by you.
+
+Hard rules:
+- Ground every claim in the bundle you were actually given. Cite file:line from it. Do not speculate about code outside the bundle.
+- If answering well would need something the bundle doesn't show, say so explicitly (mark it "NOT-SHOWN: ...") and name what you'd need — never fabricate it.
 - Be concrete and prioritised. End with a short ranked list of findings (most important first), each with the file:line and a one-line "why it matters".
 - You are one voice of several. Argue your view; don't hedge into mush.`;
 
@@ -90,7 +106,8 @@ export function listMethodologies(): string {
     .join("\n");
 }
 
-/** Build the full system prompt for a methodology. */
-export function instructionsFor(m: Methodology): string {
-  return `${BASE}\n\n${m.lens}`;
+/** Build the full system prompt for a methodology, in the given grounding mode (default "tools" — the pre-#2 behaviour). */
+export function instructionsFor(m: Methodology, grounding: Grounding = "tools"): string {
+  const base = grounding === "bundle" ? BASE_BUNDLE : BASE_TOOLS;
+  return `${base}\n\n${m.lens}`;
 }
